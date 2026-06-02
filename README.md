@@ -1,5 +1,10 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Creator OS (Ratefluencer Hackathon)
 
+🎥 **[Watch the Hackathon Demo Video Here!](https://drive.google.com/file/d/1uOjqjqgKyHGg-crPnx7UqVCqUM1OnG70/view?usp=sharing)**
+
+---
+
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 ## Getting Started
 
 First, run the development server:
