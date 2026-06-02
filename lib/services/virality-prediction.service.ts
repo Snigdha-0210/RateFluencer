@@ -50,6 +50,9 @@ export async function predictVirality(scriptObj: any) {
       console.error("Groq generation failed, falling back to Gemini", e);
     }
   }
+  if (!genAI) {
+    throw new Error("Virality prediction failed. Both Groq and Gemini APIs are unavailable.");
+  }
 
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   
