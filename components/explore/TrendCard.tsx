@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, TrendingUp, Wand2, BarChart2 } from "lucide-react";
+import { ChevronDown, TrendingUp, Wand2, BarChart2, ExternalLink } from "lucide-react";
 import { Trend, Source } from "@/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -231,26 +231,40 @@ export default function TrendCard({ trend, index }: { trend: Trend; index: numbe
       </div>
 
       {/* Actions */}
-      <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
-        <button
-          onClick={() => {
-            generateReelWithWorkflow(trend.name, "trend", trend.category, trend, router);
-          }}
-          className="btn btn-primary"
-          style={{ flex: 1, justifyContent: "center", fontSize: 12.5, padding: "8px 12px", border: "none", cursor: "pointer" }}
-        >
-          <Wand2 size={12} />
-          Create Content
-        </button>
-        <Link
-          href="/analyze"
-          onClick={() => setSelectedTrend(trend)}
-          className="btn btn-secondary"
-          style={{ gap: 4, fontSize: 12.5, padding: "8px 12px", textDecoration: "none" }}
-        >
-          <BarChart2 size={12} />
-          Analysis
-        </Link>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: "auto" }}>
+        {trend.url && trend.url !== "#" && (
+          <a
+            href={trend.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-secondary"
+            style={{ width: "100%", justifyContent: "center", fontSize: 12.5, padding: "8px 12px", textDecoration: "none", background: "#FEE2E2", color: "#DC2626", border: "1px solid #FECACA" }}
+          >
+            <ExternalLink size={12} />
+            Watch Original Reel
+          </a>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => {
+              generateReelWithWorkflow(trend.name, "trend", trend.category, trend, router);
+            }}
+            className="btn btn-primary"
+            style={{ flex: 1, justifyContent: "center", fontSize: 12.5, padding: "8px 12px", border: "none", cursor: "pointer" }}
+          >
+            <Wand2 size={12} />
+            Create Content
+          </button>
+          <Link
+            href="/analyze"
+            onClick={() => setSelectedTrend(trend)}
+            className="btn btn-secondary"
+            style={{ gap: 4, fontSize: 12.5, padding: "8px 12px", textDecoration: "none" }}
+          >
+            <BarChart2 size={12} />
+            Analysis
+          </Link>
+        </div>
       </div>
     </motion.div>
   );

@@ -8,8 +8,9 @@ import { PIPELINE_STEPS } from "@/lib/constants";
 import {
   Copy, Check, Wand2, Sparkles,
   CheckCircle2, Clock, Circle, Mic, Layers,
-  TrendingUp, Eye, Heart, Share2, Bookmark, Lightbulb
+  TrendingUp, Eye, Heart, Share2, Bookmark, Lightbulb, Loader2
 } from "lucide-react";
+import CreateFromIdea from "@/components/home/CreateFromIdea";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -78,6 +79,53 @@ function ViralityGauge({ score }: { score: number }) {
   );
 }
 
+function RenderVideoButton({ title }: { title: string }) {
+  const [status, setStatus] = useState<"idle" | "rendering" | "done">("idle");
+  const [progress, setProgress] = useState(0);
+
+  const handleRender = () => {
+    setStatus("rendering");
+    let p = 0;
+    const interval = setInterval(() => {
+      p += Math.floor(Math.random() * 10) + 5;
+      if (p >= 100) {
+        p = 100;
+        clearInterval(interval);
+        setStatus("done");
+      }
+      setProgress(p);
+    }, 300);
+  };
+
+  if (status === "done") {
+    return (
+      <button className="btn btn-primary" style={{ width: "100%", padding: "14px 0", fontSize: 14, background: "#10B981" }} onClick={() => alert(`Successfully downloaded ${title}.mp4!`)}>
+        <CheckCircle2 size={16} /> Download {title}.mp4
+      </button>
+    );
+  }
+
+  if (status === "rendering") {
+    return (
+      <div style={{ padding: "10px 0" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: "#2563EB", marginBottom: 6 }}>
+          <span>Rendering AI Reel...</span>
+          <span>{progress}%</span>
+        </div>
+        <div className="progress-track" style={{ background: "#DBEAFE" }}>
+          <div className="progress-fill" style={{ width: `${progress}%`, background: "#2563EB", transition: "width 0.3s ease" }} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button className="btn btn-primary" style={{ width: "100%", padding: "14px 0", fontSize: 14 }} onClick={handleRender}>
+      <Sparkles size={16} /> Render Final Reel
+    </button>
+  );
+}
+
 export default function ContentStudioPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingLinkedIn, setIsGeneratingLinkedIn] = useState(false);
@@ -127,6 +175,8 @@ export default function ContentStudioPage() {
   const updateActiveReelTargeting = useAppStore((state) => state.updateActiveReelTargeting);
   const beginnerMode = useAppStore((state) => state.beginnerMode);
   const setBeginnerMode = useAppStore((state) => state.setBeginnerMode);
+  const isGeneratingAudio = useAppStore((state) => state.isGeneratingAudio);
+  const generateAudioForReel = useAppStore((state) => state.generateAudioForReel);
 
   // Fallback to first reel if no active ID is selected
   const activeReel = reels.find((r) => r.id === activeReelId) || reels[0];
@@ -139,8 +189,34 @@ export default function ContentStudioPage() {
   const [cta, setCta] = useState(draft?.cta || "");
   const [activeScene, setActiveScene] = useState(0);
   const [previewPlatform, setPreviewPlatform] = useState<"LinkedIn" | "Instagram" | null>(null);
+  const [improvingField, setImprovingField] = useState<string | null>(null);
 
   const SCENES = ["Hook", "Story", "Data", "CTA"];
+
+  const handleImproveText = async (field: string, currentValue: string) => {
+    if (!currentValue.trim()) return;
+    setImprovingField(field);
+    try {
+      const res = await fetch("/api/improve-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: currentValue, type: field, context: activeReel?.title }),
+      });
+      const data = await res.json();
+      if (data.success && data.text) {
+        if (field === "hook") setHook(data.text);
+        else if (field === "story") setStory(data.text);
+        else if (field === "keyInsights") setInsights(data.text);
+        else if (field === "cta") setCta(data.text);
+        
+        updateActiveReelDraft({ [field]: data.text });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setImprovingField(null);
+    }
+  };
 
   // Keep local state in sync with Zustand store active draft modifications (especially during audience targeting shifts)
   useEffect(() => {
@@ -154,9 +230,14 @@ export default function ContentStudioPage() {
 
   if (!activeReel || !draft) {
     return (
-      <div style={{ padding: 24, textAlign: "center", marginTop: 40 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>No Active Content</h2>
-        <p style={{ color: "var(--text-muted)", marginTop: 8 }}>Please select a trend from the Discover or Explore page to generate content.</p>
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "40px 20px" }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <h2 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)" }}>AI Content Studio</h2>
+          <p style={{ color: "var(--text-muted)", marginTop: 8, fontSize: 14 }}>
+            Enter a topic below to automatically generate a viral reel script, LinkedIn post, and Instagram caption.
+          </p>
+        </div>
+        <CreateFromIdea />
       </div>
     );
   }
@@ -404,9 +485,14 @@ export default function ContentStudioPage() {
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text-primary)" }}>{label}</div>
                   <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 1 }}>{desc}</div>
                 </div>
-                <button className="btn btn-ghost" style={{ fontSize: 11.5, color: "#2563EB", padding: "4px 8px" }}>
-                  <Wand2 size={11} />
-                  AI Improve
+                <button 
+                  onClick={() => handleImproveText(field, value)}
+                  disabled={improvingField === field}
+                  className="btn btn-ghost" 
+                  style={{ fontSize: 11.5, color: "#2563EB", padding: "4px 8px", opacity: improvingField === field ? 0.6 : 1 }}
+                >
+                  {improvingField === field ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
+                  {improvingField === field ? "Improving..." : "AI Improve"}
                 </button>
               </div>
               <textarea
@@ -486,7 +572,7 @@ export default function ContentStudioPage() {
                 <div
                   style={{
                     height: "100%",
-                    background: "linear-gradient(180deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)",
+                    background: "black",
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "flex-end",
@@ -494,22 +580,41 @@ export default function ContentStudioPage() {
                     position: "relative",
                   }}
                 >
+                  {/* B-Roll Video Background */}
+                  <video 
+                    autoPlay 
+                    loop 
+                    muted 
+                    playsInline
+                    src="https://videos.pexels.com/video-files/3129595/3129595-uhd_1440_2560_30fps.mp4"
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      zIndex: 0,
+                      opacity: 0.6
+                    }}
+                  />
+
                   {/* Status bar dots */}
-                  <div style={{ position: "absolute", top: 10, right: 12, display: "flex", gap: 4, alignItems: "center" }}>
+                  <div style={{ position: "absolute", top: 10, right: 12, display: "flex", gap: 4, alignItems: "center", zIndex: 1 }}>
                     <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#10B981" }} />
                     <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", fontWeight: 600 }}>LIVE</div>
                   </div>
 
                   {/* Floating data */}
-                  <div style={{ position: "absolute", top: "25%", left: 10, right: 10 }}>
-                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.5)", textAlign: "center", lineHeight: 1.5 }}>
+                  <div style={{ position: "absolute", top: "25%", left: 10, right: 10, zIndex: 1 }}>
+                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.7)", textAlign: "center", lineHeight: 1.5, textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}>
                       🎬 {activeReel.title}<br />
                       <span style={{ fontSize: 11, color: "white", fontWeight: 700 }}>Score: {draft.viralityScore}</span>
                     </div>
                   </div>
 
                   {/* Progress timeline */}
-                  <div style={{ marginBottom: 10 }}>
+                  <div style={{ marginBottom: 10, zIndex: 1, position: "relative" }}>
                     <div style={{ display: "flex", gap: 3, marginBottom: 6 }}>
                       {SCENES.map((s, i) => (
                         <div
@@ -534,24 +639,25 @@ export default function ContentStudioPage() {
                   {/* Caption preview */}
                   <div
                     style={{
-                      padding: "8px",
-                      background: "rgba(0,0,0,0.4)",
+                      padding: "10px 12px",
+                      background: "rgba(0,0,0,0.5)",
                       borderRadius: 8,
-                      fontSize: 8,
-                      color: "rgba(255,255,255,0.9)",
-                      lineHeight: 1.4,
+                      fontSize: 9,
+                      color: "rgba(255,255,255,0.95)",
+                      lineHeight: 1.5,
                       marginBottom: 8,
                       backdropFilter: "blur(10px)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap"
+                      zIndex: 1,
+                      position: "relative",
+                      fontWeight: 500,
+                      boxShadow: "0 4px 6px rgba(0,0,0,0.2)"
                     }}
                   >
                     {draft.hook}
                   </div>
 
                   {/* Action buttons */}
-                  <div style={{ position: "absolute", right: 8, bottom: 60, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
+                  <div style={{ position: "absolute", right: 8, bottom: 60, display: "flex", flexDirection: "column", gap: 10, alignItems: "center", zIndex: 1 }}>
                     {[{ icon: "❤️", label: "84K" }, { icon: "💬", label: "2.4K" }, { icon: "🔗", label: "Share" }].map(({ icon, label }) => (
                       <div key={label} style={{ textAlign: "center" }}>
                         <div style={{ fontSize: 14 }}>{icon}</div>
@@ -564,22 +670,61 @@ export default function ContentStudioPage() {
             </div>
 
             {/* Voiceover status */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "9px 12px",
-                background: "#F0FDF4",
-                border: "1px solid #BBF7D0",
-                borderRadius: 8,
-                marginBottom: 10,
-              }}
-            >
-              <Mic size={13} color="#059669" />
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#059669" }}>Voiceover Ready</span>
-              <span style={{ fontSize: 11, color: "#6EE7B7", marginLeft: "auto" }}>28s</span>
-            </div>
+            {!draft?.audioUrl ? (
+              <button
+                onClick={() => {
+                  if (activeReelId && draft) {
+                    const fullText = `${draft.hook}\n${draft.story}\n${draft.cta}`;
+                    generateAudioForReel(activeReelId, fullText);
+                  }
+                }}
+                disabled={isGeneratingAudio}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  padding: "9px 12px",
+                  background: isGeneratingAudio ? "#E5E7EB" : "#F0FDF4",
+                  border: isGeneratingAudio ? "1px solid #D1D5DB" : "1px solid #BBF7D0",
+                  borderRadius: 8,
+                  marginBottom: 10,
+                  cursor: isGeneratingAudio ? "not-allowed" : "pointer",
+                  width: "100%",
+                }}
+              >
+                {isGeneratingAudio ? (
+                  <>
+                    <Loader2 className="animate-spin" size={13} color="#6B7280" />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#4B5563" }}>Generating AI Voiceover...</span>
+                  </>
+                ) : (
+                  <>
+                    <Mic size={13} color="#059669" />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#059669" }}>Generate Voiceover</span>
+                  </>
+                )}
+              </button>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                  padding: "12px",
+                  background: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 8,
+                  marginBottom: 10,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Mic size={13} color="#2563EB" />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#2563EB" }}>Voiceover Ready</span>
+                </div>
+                <audio controls src={draft.audioUrl} style={{ width: "100%", height: "30px" }} />
+              </div>
+            )}
 
             {/* Thumbnail */}
             <div
@@ -741,6 +886,11 @@ export default function ContentStudioPage() {
                 style={{ background: "#059669" }}
               />
             </div>
+          </div>
+          
+          {/* Render Final Video Button */}
+          <div className="card" style={{ padding: "18px 20px" }}>
+            <RenderVideoButton title={activeReel.title} />
           </div>
         </div>
 

@@ -6,15 +6,8 @@ if (process.env.GEMINI_API_KEY) {
 }
 
 export async function predictVirality(scriptObj: any) {
-  if (!genAI) {
-    console.warn("⚠️ WARNING: GEMINI_API_KEY is not configured. Returning default virality metrics.");
-    return {
-      views: "10K - 50K",
-      likes: "1K - 5K",
-      shares: "100 - 500",
-      saves: "200 - 800",
-      viralityScore: 75
-    };
+  if (!genAI && !process.env.GROQ_API_KEY) {
+    throw new Error("No AI API keys configured. Virality prediction failed.");
   }
 
   const prompt = `
@@ -72,13 +65,6 @@ export async function predictVirality(scriptObj: any) {
     return parsed;
   } catch (error) {
     console.error("Gemini virality prediction failed:", error);
-    // Fallback if AI fails
-    return {
-      views: "10K - 50K",
-      likes: "1K - 5K",
-      shares: "100 - 500",
-      saves: "200 - 800",
-      viralityScore: 75
-    };
+    throw new Error("Virality prediction failed due to AI API error.");
   }
 }

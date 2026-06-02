@@ -56,7 +56,8 @@ export default function RecommendedCards() {
     setError(null);
     try {
       const data = await getTrends();
-      setTrends(data);
+      const filtered = data.filter(t => t.category.toLowerCase() === creatorProfile.category.toLowerCase());
+      setTrends(filtered.length > 0 ? filtered : data.slice(0, 5));
     } catch (err: any) {
       setError(err.message || "Failed to load trends");
     } finally {

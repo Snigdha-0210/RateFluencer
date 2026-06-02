@@ -114,8 +114,35 @@ function computeEnhancedVirality(hook: string, story: string, cta: string, categ
 // ─── Gemini call helper ───────────────────────────────────────────────────────
 
 async function geminiJSON(model: any, prompt: string): Promise<any> {
-  const result = await model.generateContent(prompt);
-  let raw = result.response.text().trim();
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY is missing. Please add it to your .env.local file.");
+  }
+
+  const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "llama-3.1-8b-instant",
+      messages: [
+        { role: "system", content: "You are a JSON generating API. Always return valid JSON." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.7,
+      response_format: { type: "json_object" }
+    })
+  });
+
+  if (!groqRes.ok) {
+    const errText = await groqRes.text();
+    console.error("Groq API Error:", errText);
+    throw new Error(`Groq API Error: ${groqRes.statusText}`);
+  }
+
+  const groqData = await groqRes.json();
+  let raw = groqData.choices[0].message.content.trim();
   if (raw.startsWith("```json")) raw = raw.slice(7);
   if (raw.endsWith("```")) raw = raw.slice(0, -3);
   return JSON.parse(raw.trim());

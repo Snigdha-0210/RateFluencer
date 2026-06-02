@@ -372,12 +372,45 @@ function AudienceDemographics({ audience }: { audience: any }) {
 }
 
 export default function TrendIntelligencePage() {
-  const trend = useAppStore((state) => state.selectedTrend) || (TRENDS && TRENDS.length > 0 ? TRENDS[0] : null);
+  const trend = useAppStore((state) => state.selectedTrend);
   const router = useRouter();
   const generateReelWithWorkflow = useAppStore((state) => state.generateReelWithWorkflow);
-  const createReelFromTrend = useAppStore((state) => state.createReelFromTrend);
 
-  if (!trend) {
+  const [loading, setLoading] = useState(false);
+  const [analysisText, setAnalysisText] = useState<string>("");
+  const [researchCards, setResearchCards] = useState<ResearchCard[]>([]);
+  const [contentAngles, setContentAngles] = useState<ContentAngle[]>([]);
+  const [dynamicChartData, setDynamicChartData] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (trend) {
+      setLoading(true);
+      fetch("/api/trends/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trendName: trend.name,
+          trendCategory: trend.category,
+          trendDescription: trend.description,
+          velocity: trend.scores?.growth || 85,
+          trendUrl: trend.url
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setAnalysisText(data.analysis);
+          setResearchCards(data.researchCards || []);
+          setContentAngles(data.contentAngles || []);
+          setDynamicChartData(data.chartData || []);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+    }
+  }, [trend]);
+
+  if (!trend || Object.keys(trend).length === 0) {
     return (
       <div style={{ padding: 24, textAlign: "center" }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>No Trend Selected</h2>
@@ -397,8 +430,6 @@ export default function TrendIntelligencePage() {
     audienceRelevance: 0,
     estimatedReach: "0"
   };
-
-  const chartData = Array.isArray(trend.chartData) ? trend.chartData : [];
 
   const audience = trend.audience || {
     countries: [{ name: "United States", percentage: 40 }, { name: "India", percentage: 35 }, { name: "United Kingdom", percentage: 15 }, { name: "Canada", percentage: 10 }],
@@ -469,22 +500,43 @@ export default function TrendIntelligencePage() {
         </div>
       </div>
 
-      {/* Research Cards */}
-      <h2 className="section-heading">Research Intelligence</h2>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 14,
-          marginBottom: 28,
-        }}
-      >
-        {(RESEARCH_CARDS || []).map((card) => {
-          if (!card) return null;
-          const updatedCard = card.id === "r3" ? { ...card, title: "YouTube Momentum" } : card;
-          return <ResearchCardItem key={updatedCard.id} card={updatedCard} />;
-        })}
-      </div>
+      {loading ? (
+        <div style={{ padding: "60px 20px", textAlign: "center", color: "var(--text-muted)" }}>
+          <div className="animate-spin" style={{ display: "inline-block", marginBottom: 16 }}>
+            <TrendingUp size={32} color="var(--accent)" />
+          </div>
+          <p style={{ fontSize: 14, fontWeight: 600 }}>Groq AI is analyzing this trend in real-time...</p>
+        </div>
+      ) : (
+        <>
+          {/* Analysis Text */}
+          <div className="card" style={{ padding: "24px 28px", marginBottom: 28, background: "#fff", borderLeft: "4px solid #2563EB" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", marginBottom: 12 }}>Groq Deep Dive Analysis</h2>
+            {analysisText ? (
+              <div style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+                {analysisText}
+              </div>
+            ) : (
+              <p style={{ fontSize: 14, color: "var(--text-muted)" }}>No analysis available for this trend yet.</p>
+            )}
+          </div>
+
+          {/* Research Cards */}
+          <h2 className="section-heading">Research Intelligence</h2>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 14,
+              marginBottom: 28,
+            }}
+          >
+            {(researchCards || []).map((card) => {
+              if (!card) return null;
+              const updatedCard = card.id === "r3" ? { ...card, title: "YouTube Momentum" } : card;
+              return <ResearchCardItem key={updatedCard.id} card={updatedCard} />;
+            })}
+          </div>
 
       {/* 30-Day Chart & Score Calculation */}
       <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 20, marginBottom: 28 }}>
@@ -516,8 +568,8 @@ export default function TrendIntelligencePage() {
             </div>
           </div>
           <ResponsiveContainer width="100%" height={280}>
-            {chartData.length > 0 ? (
-              <AreaChart data={chartData.slice(-30)} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+            {dynamicChartData.length > 0 ? (
+              <AreaChart data={dynamicChartData.slice(-30)} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gradValue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
@@ -529,12 +581,11 @@ export default function TrendIntelligencePage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F0F3F6" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#8896A9" }} axisLine={false} tickLine={false} interval={4} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#8896A9" }} axisLine={false} tickLine={false} interval={1} />
                 <YAxis tick={{ fontSize: 11, fill: "#8896A9" }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: 12, paddingTop: 16 }} />
                 <Area type="monotone" dataKey="value" name="Interest Score" stroke="#2563EB" strokeWidth={2.5} fill="url(#gradValue)" dot={false} />
-                <Area type="monotone" dataKey="engagement" name="Engagement" stroke="#7C3AED" strokeWidth={2} fill="url(#gradEngagement)" dot={false} />
               </AreaChart>
             ) : (
               <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
@@ -552,11 +603,11 @@ export default function TrendIntelligencePage() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <ScoreCalculationBar label="Growth Velocity" score={94} weight={25} color="#059669" />
-            <ScoreCalculationBar label="Search Interest" score={scores.searchInterest} weight={20} color="#2563EB" />
-            <ScoreCalculationBar label="Engagement Potential" score={scores.engagementPotential} weight={20} color="#7C3AED" />
-            <ScoreCalculationBar label="Novelty" score={scores.novelty} weight={15} color="#0891B2" />
-            <ScoreCalculationBar label="Audience Relevance" score={scores.audienceRelevance} weight={20} color="#BE185D" />
+            <ScoreCalculationBar label="Growth Velocity" score={scores.growth || 94} weight={25} color="#059669" />
+            <ScoreCalculationBar label="Search Interest" score={scores.searchInterest || 85} weight={20} color="#2563EB" />
+            <ScoreCalculationBar label="Engagement Potential" score={scores.engagementPotential || 88} weight={20} color="#7C3AED" />
+            <ScoreCalculationBar label="Novelty" score={scores.novelty || 75} weight={15} color="#0891B2" />
+            <ScoreCalculationBar label="Audience Relevance" score={scores.audienceRelevance || 90} weight={20} color="#BE185D" />
           </div>
 
           <div style={{ marginTop: 14, padding: "10px 12px", background: "linear-gradient(135deg, #EFF6FF, #F5F3FF)", borderRadius: 10, border: "1px solid #BFDBFE" }}>
@@ -572,9 +623,9 @@ export default function TrendIntelligencePage() {
       <AudienceDemographics audience={audience} />
 
       {/* Content Angles */}
-      <h2 className="section-heading">Content Angles</h2>
+      <h2 className="section-heading">AI Content Angles</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-        {(CONTENT_ANGLES || []).map((angle, i) => (
+        {(contentAngles || []).map((angle, i) => (
           <AngleCard key={angle ? angle.id : i} angle={angle} index={i} trend={trend} />
         ))}
       </div>
@@ -584,6 +635,8 @@ export default function TrendIntelligencePage() {
 
       {/* Influencer Intelligence */}
       <InfluencerIntelligence />
+      </>
+      )}
     </>
   );
 }
@@ -800,9 +853,14 @@ function InfluencerIntelligence() {
   useEffect(() => {
     fetch("/api/influencers")
       .then((r) => r.json())
-      .then((data) => { setInfluencers(data); setLoading(false); })
+      .then((data) => { 
+        setInfluencers(Array.isArray(data) ? data : (data.influencers || [])); 
+        setLoading(false); 
+      })
       .catch(() => setLoading(false));
   }, []);
+
+  const safeInfluencers = Array.isArray(influencers) ? influencers : [];
 
   return (
     <div style={{ marginTop: 32 }}>
@@ -810,9 +868,9 @@ function InfluencerIntelligence() {
         <Users size={18} color="#7C3AED" />
         <h2 className="section-heading" style={{ margin: 0 }}>Influencer Intelligence</h2>
         <span style={{ fontSize: 11, fontWeight: 700, color: "#7C3AED", background: "#F5F3FF", border: "1px solid #DDD6FE", padding: "2px 8px", borderRadius: 99 }}>AI-Ranked</span>
-        {influencers.length > 0 && (
+        {safeInfluencers.length > 0 && (
           <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>
-            {influencers.length} creators ranked by composite AI score
+            {safeInfluencers.length} creators ranked by composite AI score
           </span>
         )}
       </div>
@@ -824,7 +882,7 @@ function InfluencerIntelligence() {
         <div style={{ textAlign: "center", padding: 32, color: "var(--text-muted)", fontSize: 13 }}>Scoring influencers…</div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-          {influencers.map((inf, i) => (
+          {safeInfluencers.map((inf, i) => (
             <InfluencerCard key={inf.id} inf={inf} index={i} />
           ))}
         </div>

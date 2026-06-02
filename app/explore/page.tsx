@@ -2,13 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Filter, ChevronDown, TrendingUp, Wand2, BarChart2, Zap, Lightbulb } from "lucide-react";
-import { TrendEvent } from "@/types/events";
-import { getCategoryColor } from "@/lib/utils";
-import { Trend, Category, Source } from "@/types";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Search, Zap, Lightbulb, ArrowLeft, Loader2 } from "lucide-react";
+import { Trend, Category } from "@/types";
 import { useAppStore } from "@/store/useAppStore";
+import TrendCard from "@/components/explore/TrendCard";
 
 const CATEGORIES: string[] = [
   "AI", "Technology", "Business", "Finance", "Startups", "Creator Economy", "Marketing", "Productivity", "Career",
@@ -19,34 +16,50 @@ const CATEGORIES: string[] = [
   "Personal Stories", "College Life", "Study Tips", "Entrepreneurship", "Side Hustles"
 ];
 
-const SOURCE_COLORS: Record<string, string> = {
-  Reddit: "#FF4500",
-  LinkedIn: "#0077B5",
-  YouTube: "#FF0000",
-  News: "#6B7280",
-  "Social Trends": "#7C3AED", // Purple for mapped social trends
-};
-
 const CATEGORY_INFOS = [
-  { name: "AI", desc: "Large Language Models & Agentic workflows", gradient: "linear-gradient(135deg, #EFF6FF, #DBEAFE)", color: "#1D4ED8", count: 3 },
+  { name: "Food Vlogging", desc: "Restaurant reviews, recipes & food challenges", gradient: "linear-gradient(135deg, #FFF7ED, #FFEDD5)", color: "#C2410C", count: 1 },
+  { name: "Couple Content", desc: "Pranks, challenges & relationship humor", gradient: "linear-gradient(135deg, #FFF1F2, #FFE4E6)", color: "#E11D48", count: 2 },
+  { name: "Memes", desc: "Relatable humor, trending audio & shitposting", gradient: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", color: "#6D28D9", count: 1 },
+  { name: "Street Food", desc: "Local delicacies and hidden gems", gradient: "linear-gradient(135deg, #FEFCE8, #FEF08A)", color: "#A16207", count: 1 },
+  { name: "Cringe Content", desc: "Satire, awkward moments & guilty pleasures", gradient: "linear-gradient(135deg, #FDF4FF, #FAE8FF)", color: "#A21CAF", count: 1 },
+  { name: "Fitness", desc: "Gym routines, form checks & transformations", gradient: "linear-gradient(135deg, #ECFEFF, #CFFAFE)", color: "#0E7490", count: 1 },
+  { name: "Gaming", desc: "Clips, easter eggs & streamer moments", gradient: "linear-gradient(135deg, #F0FDFA, #CCFBF1)", color: "#0F766E", count: 1 },
+  { name: "Travel", desc: "Itineraries, hacks & aesthetic locations", gradient: "linear-gradient(135deg, #ECFDF5, #D1FAE5)", color: "#047857", count: 1 },
+  { name: "Beauty", desc: "Makeup tutorials, GRWM & product reviews", gradient: "linear-gradient(135deg, #FDF2F8, #FCE7F3)", color: "#BE185D", count: 1 },
+  { name: "Lifestyle", desc: "Day in the life, vlogs & aesthetic living", gradient: "linear-gradient(135deg, #EFF6FF, #DBEAFE)", color: "#1D4ED8", count: 1 },
+  { name: "Entertainment", desc: "Pop culture, movie reviews & celeb drama", gradient: "linear-gradient(135deg, #FEF2F2, #FEE2E2)", color: "#B91C1C", count: 1 },
+  { name: "Comedy", desc: "Skits, standup clips & funny reactions", gradient: "linear-gradient(135deg, #F8FAFC, #E2E8F0)", color: "#334155", count: 1 },
+  { name: "Tech Gadgets", desc: "Unboxings, reviews & hidden features", gradient: "linear-gradient(135deg, #F0F9FF, #E0F2FE)", color: "#0369A1", count: 1 },
+  { name: "Personal Stories", desc: "Storytimes, reddit threads & hot takes", gradient: "linear-gradient(135deg, #F0FDF4, #DCFCE7)", color: "#15803D", count: 1 },
+  { name: "College Life", desc: "Dorm tours, study hacks & student vlogs", gradient: "linear-gradient(135deg, #FFF1F2, #FFE4E6)", color: "#BE123C", count: 1 },
+  { name: "AI", desc: "LLMs, Agentic workflows & prompts", gradient: "linear-gradient(135deg, #EFF6FF, #DBEAFE)", color: "#1D4ED8", count: 3 },
   { name: "Creator Economy", desc: "Audience monetization & content trends", gradient: "linear-gradient(135deg, #FFF1F2, #FFE4E6)", color: "#E11D48", count: 2 },
-  { name: "Technology", desc: "Software, Developer tools & CS trends", gradient: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", color: "#6D28D9", count: 1 },
   { name: "Business", desc: "Market dynamics & personal branding", gradient: "linear-gradient(135deg, #ECFDF5, #D1FAE5)", color: "#047857", count: 2 },
   { name: "Startups", desc: "Founding, funding & product validation", gradient: "linear-gradient(135deg, #FFF7ED, #FFEDD5)", color: "#C2410C", count: 1 },
   { name: "Finance", desc: "DeFi, investing & digital assets", gradient: "linear-gradient(135deg, #F0FDFA, #CCFBF1)", color: "#0F766E", count: 1 },
+  { name: "Music Covers", desc: "Singing, instruments & trending audios", gradient: "linear-gradient(135deg, #FCE7F3, #FBCFE8)", color: "#BE185D", count: 1 },
+  { name: "DIY & Crafts", desc: "Lifehacks, restorations & art", gradient: "linear-gradient(135deg, #FEF08A, #FDE047)", color: "#A16207", count: 1 },
+  { name: "Real Estate", desc: "House tours, flipping & investments", gradient: "linear-gradient(135deg, #E0F2FE, #BAE6FD)", color: "#0369A1", count: 1 },
+  { name: "ASMR", desc: "Satisfying sounds, kinetic sand & whispers", gradient: "linear-gradient(135deg, #EDE9FE, #DDD6FE)", color: "#6D28D9", count: 1 },
+  { name: "Pets & Animals", desc: "Funny cats, dog training & cute moments", gradient: "linear-gradient(135deg, #DCFCE7, #BBF7D0)", color: "#15803D", count: 1 },
+  { name: "Parenting Hacks", desc: "Family vlogs, tips & relatable struggles", gradient: "linear-gradient(135deg, #FFE4E6, #FECDD3)", color: "#BE123C", count: 1 },
+  { name: "Storytelling", desc: "Creepypastas, true crime & history", gradient: "linear-gradient(135deg, #DBEAFE, #BFDBFE)", color: "#1D4ED8", count: 1 },
+  { name: "Anime & Manga", desc: "Reviews, edits & cosplay", gradient: "linear-gradient(135deg, #FFEDD5, #FED7AA)", color: "#C2410C", count: 1 },
+  { name: "Motivation", desc: "Discipline, quotes & mindset shifts", gradient: "linear-gradient(135deg, #CCFBF1, #99F6E4)", color: "#0F766E", count: 1 },
+  { name: "Automotive", desc: "Car reviews, detailing & racing clips", gradient: "linear-gradient(135deg, #F1F5F9, #E2E8F0)", color: "#334155", count: 1 }
 ];
-
-import TrendCard from "@/components/explore/TrendCard";
 
 function NetflixRow({ title, subtitle, trends }: { title: string; subtitle?: string; trends: Trend[] }) {
   if (!trends || trends.length === 0) return null;
   return (
     <div style={{ marginBottom: 32 }}>
-      <div style={{ marginBottom: 16 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.4px" }}>
-          {title}
-        </h2>
-        {subtitle && <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 2 }}>{subtitle}</p>}
+      <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.4px" }}>
+            {title}
+          </h2>
+          {subtitle && <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 2 }}>{subtitle}</p>}
+        </div>
       </div>
 
       <div
@@ -68,12 +81,15 @@ function NetflixRow({ title, subtitle, trends }: { title: string; subtitle?: str
   );
 }
 
-export default function OpportunityBoardPage() {
+export default function ExplorePage() {
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<Category | "All">("All");
-  const [selectedGrowth, setSelectedGrowth] = useState("All");
   const [trends, setTrends] = useState<Trend[]>([]);
-  const setSelectedTrend = useAppStore((state) => state.setSelectedTrend);
+  
+  // State for Deep Fetching (Expanded Genre View)
+  const [focusedCategory, setFocusedCategory] = useState<string | null>(null);
+  const [deepFetchTrends, setDeepFetchTrends] = useState<Trend[]>([]);
+  const [isDeepFetching, setIsDeepFetching] = useState(false);
+
   const creatorProfile = useAppStore((state) => state.creatorProfile);
   const beginnerMode = useAppStore((state) => state.beginnerMode);
   const setBeginnerMode = useAppStore((state) => state.setBeginnerMode);
@@ -87,28 +103,52 @@ export default function OpportunityBoardPage() {
         }
       })
       .catch(console.error);
+
+    // Deep Link Handler
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const catParam = params.get("category");
+      if (catParam) {
+        handleDeepFetch(catParam);
+        // Clean up URL so refresh doesn't keep triggering
+        window.history.replaceState(null, "", "/explore");
+      }
+    }
   }, []);
 
-  // Dynamic generation for selected category
-  const categoryTrends = trends.filter(t => t.category === selectedCategory);
-  
-  // Directly use categoryTrends or all trends without dynamic mock fallback
-  const displayTrends = selectedCategory !== "All" ? categoryTrends : trends;
+  const handleDeepFetch = async (category: string) => {
+    setFocusedCategory(category);
+    setIsDeepFetching(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    try {
+      const res = await fetch(`/api/trends/deep-fetch?category=${encodeURIComponent(category)}`);
+      const data = await res.json();
+      if (data.success) {
+        setDeepFetchTrends(data.trends);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDeepFetching(false);
+    }
+  };
 
-  const filtered = displayTrends.filter((t) => {
+  const closeDeepFetch = () => {
+    setFocusedCategory(null);
+    setDeepFetchTrends([]);
+  };
+
+  const filtered = trends.filter((t) => {
     if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
-    if (selectedCategory !== "All" && t.category !== selectedCategory) return false;
-    if (selectedGrowth !== "All" && t.growthLevel !== selectedGrowth) return false;
     return true;
   });
 
-  const isFiltered = search !== "" || selectedCategory !== "All" || selectedGrowth !== "All";
+  const isSearching = search !== "";
 
   // Sortings for Netflix rows
-  const recommendedTrends = trends.filter((t) => t.scores.overall >= 85);
-  const mostViralTrends = [...trends].sort((a, b) => b.scores.virality - a.scores.virality);
-  const highestGrowthTrends = [...trends].sort((a, b) => b.scores.growth - a.scores.growth);
-  const newestTrends = [...trends].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const recommendedTrends = trends.filter((t) => (t.scores?.overall || 0) >= 85);
+  const mostViralTrends = [...trends].sort((a, b) => (b.scores?.virality || 0) - (a.scores?.virality || 0));
+  const highestGrowthTrends = [...trends].sort((a, b) => (b.scores?.growth || 0) - (a.scores?.growth || 0));
 
   return (
     <>
@@ -118,7 +158,10 @@ export default function OpportunityBoardPage() {
           <div>
             <h1 className="page-title">Explore</h1>
             <p className="page-subtitle">
-              {trends.length} trends discovered today · Updated Live
+              {focusedCategory 
+                ? `100+ Live trends dynamically curated for ${focusedCategory}` 
+                : `${trends.length} trends discovered today · Updated Live`
+              }
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -171,212 +214,168 @@ export default function OpportunityBoardPage() {
               }}
             >
               <Zap size={14} />
-              AI-Curated · Updated Live
+              Live Feed
             </div>
           </div>
         </div>
       </div>
 
-      {/* AI Recommendation Banner for Beginners */}
-      {beginnerMode && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="card"
-          style={{
-            padding: "16px 20px",
-            background: "linear-gradient(135deg, #FFFBEB 0%, #FFFDF5 100%)",
-            border: "1px solid #FCD34D",
-            marginBottom: 20,
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 12
-          }}
-        >
-          <div style={{ fontSize: 20, background: "#FEF3C7", padding: 8, borderRadius: 8, flexShrink: 0 }}>
-            💡
+      {focusedCategory ? (
+        // DEEP FETCH VIEW
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <div style={{ marginBottom: 20 }}>
+            <button
+              onClick={closeDeepFetch}
+              className="btn btn-secondary"
+              style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid var(--border)", background: "white", borderRadius: 8, cursor: "pointer" }}
+            >
+              <ArrowLeft size={16} /> Back to Explore
+            </button>
           </div>
-          <div>
-            <h3 style={{ fontSize: 13.5, fontWeight: 800, color: "#92400E", marginBottom: 4 }}>
-              AI Recommendation: How to Choose a Trend (Beginner Friendly Mode)
-            </h3>
-            <p style={{ fontSize: 12.5, color: "#B45309", lineHeight: 1.5, margin: 0 }}>
-              Based on your profile category (<strong>{creatorProfile.category}</strong>), we recommend choosing trends with an <strong>Audience Fit Score above 80%</strong>. 
-              Reels based on <strong>&quot;{creatorProfile.category}&quot;</strong> perform best on <strong>Instagram Reels</strong> and <strong>YouTube Shorts</strong>. 
-              Focus on trends with high growth rate (e.g. <strong>explosive</strong> growth level) to piggyback on search momentum!
-            </p>
-            <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
-              <div style={{ fontSize: 11.5, color: "#92400E", fontWeight: 600 }}>
-                ⏰ Recommended Posting Times: <span style={{ fontWeight: 800 }}>6:00 PM - 8:30 PM</span> local time.
+          
+          {isDeepFetching ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "100px 0", gap: 16 }}>
+              <Loader2 className="spinner" size={32} color="var(--accent)" />
+              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
+                Scraping the internet for {focusedCategory} trends...
               </div>
-              <div style={{ fontSize: 11.5, color: "#92400E", fontWeight: 600 }}>
-                🎬 Suggested Format: <span style={{ fontWeight: 800 }}>Talking Head + Text Overlays</span>.
-              </div>
+              <div style={{ fontSize: 13, color: "var(--text-muted)" }}>This usually takes 2-4 seconds.</div>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+                gap: 20,
+              }}
+            >
+              {deepFetchTrends.map((trend, i) => (
+                <TrendCard key={trend.id} trend={trend} index={i} />
+              ))}
+            </div>
+          )}
+        </motion.div>
+      ) : (
+        // DEFAULT NETFLIX VIEW
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          {/* Filters */}
+          <div
+            className="card"
+            style={{
+              padding: "14px 20px",
+              marginBottom: 24,
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div className="search-input" style={{ flex: 1, minWidth: 200 }}>
+              <Search size={14} color="var(--text-muted)" />
+              <input
+                placeholder="Search across all genres..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                id="trend-search"
+              />
             </div>
           </div>
+
+          <AnimatePresence mode="wait">
+            {isSearching ? (
+              <motion.div
+                key="grid"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+                  gap: 20,
+                }}
+              >
+                {filtered.map((trend, i) => (
+                  <TrendCard key={trend.id} trend={trend} index={i} />
+                ))}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="netflix"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                style={{ display: "flex", flexDirection: "column" }}
+              >
+                {/* Netflix Rows */}
+                <NetflixRow
+                  title="Recommended For You"
+                  subtitle="Top opportunities matched to your content strategy profile"
+                  trends={recommendedTrends}
+                />
+
+                <NetflixRow
+                  title="Most Viral"
+                  subtitle="Content directions with maximum organic amplification potential"
+                  trends={mostViralTrends}
+                />
+
+                <NetflixRow
+                  title="Highest Growth"
+                  subtitle="Rising search interest and growth velocity today"
+                  trends={highestGrowthTrends}
+                />
+
+                {/* Genre Deep Dives */}
+                <div style={{ marginBottom: 32 }}>
+                  <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.4px", marginBottom: 16 }}>
+                    Explore Genres Deep Dive
+                  </h2>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
+                    {CATEGORY_INFOS.map((cat) => (
+                      <div
+                        key={cat.name}
+                        onClick={() => handleDeepFetch(cat.name)}
+                        style={{
+                          padding: "18px",
+                          background: cat.gradient,
+                          border: "1px solid rgba(0, 0, 0, 0.04)",
+                          borderRadius: 12,
+                          cursor: "pointer",
+                          transition: "transform 0.2s, box-shadow 0.2s",
+                        }}
+                        className="card-hover"
+                      >
+                        <div style={{ fontSize: 15, fontWeight: 800, color: cat.color, marginBottom: 4 }}>
+                          {cat.name}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "var(--text-secondary)", lineHeight: 1.45, marginBottom: 12 }}>
+                          {cat.desc}
+                        </div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: cat.color, display: "flex", alignItems: "center", gap: 2 }}>
+                          Load 100+ Topics <span style={{ transition: "transform 0.2s" }}>→</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Rows for All Genres */}
+                {CATEGORY_INFOS.map((cat) => {
+                  const catTrends = trends.filter(t => t.category.toLowerCase() === cat.name.toLowerCase());
+                  if (catTrends.length === 0) return null;
+                  return (
+                    <NetflixRow
+                      key={cat.name}
+                      title={`Trending in ${cat.name}`}
+                      trends={catTrends}
+                    />
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
-
-      {/* Filters */}
-      <div
-        className="card"
-        style={{
-          padding: "14px 20px",
-          marginBottom: 24,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <div className="search-input" style={{ flex: 1, minWidth: 200 }}>
-          <Search size={14} color="var(--text-muted)" />
-          <input
-            placeholder="Search trends..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            id="trend-search"
-          />
-        </div>
-
-        <div style={{ display: "flex", gap: 8 }}>
-          <select
-            id="category-filter"
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value as Category | "All")}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              fontSize: 13,
-              color: "var(--text-primary)",
-              background: "white",
-              cursor: "pointer",
-              fontFamily: "inherit",
-              fontWeight: 500,
-            }}
-          >
-            <option value="All">All Categories</option>
-            {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-
-          <select
-            id="growth-filter"
-            value={selectedGrowth}
-            onChange={(e) => setSelectedGrowth(e.target.value)}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              fontSize: 13,
-              color: "var(--text-primary)",
-              background: "white",
-              cursor: "pointer",
-              fontFamily: "inherit",
-              fontWeight: 500,
-            }}
-          >
-            <option value="All">All Growth</option>
-            <option value="explosive">Explosive</option>
-            <option value="high">High</option>
-            <option value="moderate">Moderate</option>
-          </select>
-        </div>
-
-        <div style={{ marginLeft: "auto", fontSize: 13, color: "var(--text-muted)", fontWeight: 500 }}>
-          {filtered.length} results
-        </div>
-      </div>
-
-      {/* Netflix Layout or Filter Grid */}
-      <AnimatePresence mode="wait">
-        {isFiltered ? (
-          <motion.div
-            key="grid"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
-              gap: 20,
-            }}
-          >
-            {filtered.map((trend, i) => (
-              <TrendCard key={trend.id} trend={trend} index={i} />
-            ))}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="netflix"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={{ display: "flex", flexDirection: "column" }}
-          >
-            <NetflixRow
-              title="Recommended For You"
-              subtitle="Top opportunities matched to your content strategy profile"
-              trends={recommendedTrends}
-            />
-
-            <NetflixRow
-              title="Most Viral"
-              subtitle="Content directions with maximum organic amplification potential"
-              trends={mostViralTrends}
-            />
-
-            <NetflixRow
-              title="Highest Growth"
-              subtitle="Rising search interest and growth velocity today"
-              trends={highestGrowthTrends}
-            />
-
-            <NetflixRow
-              title="Newest Trends"
-              subtitle="Freshly scanned and identified topics across public forums"
-              trends={newestTrends}
-            />
-
-            {/* Trending Categories Section */}
-            <div style={{ marginBottom: 32 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.4px", marginBottom: 16 }}>
-                Trending Categories
-              </h2>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
-                {CATEGORY_INFOS.map((cat) => (
-                  <div
-                    key={cat.name}
-                    onClick={() => {
-                      setSelectedCategory(cat.name as Category);
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
-                    style={{
-                      padding: "18px",
-                      background: cat.gradient,
-                      border: "1px solid rgba(0, 0, 0, 0.04)",
-                      borderRadius: 12,
-                      cursor: "pointer",
-                      transition: "transform 0.2s, box-shadow 0.2s",
-                    }}
-                    className="card-hover"
-                  >
-                    <div style={{ fontSize: 15, fontWeight: 800, color: cat.color, marginBottom: 4 }}>
-                      {cat.name}
-                    </div>
-                    <div style={{ fontSize: 11.5, color: "var(--text-secondary)", lineHeight: 1.45, marginBottom: 12 }}>
-                      {cat.desc}
-                    </div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: cat.color, display: "flex", alignItems: "center", gap: 2 }}>
-                      {cat.count} active opportunities <span style={{ transition: "transform 0.2s" }}>→</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </>
   );
 }

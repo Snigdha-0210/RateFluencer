@@ -87,6 +87,7 @@ export interface ContentDraft {
   expectedShares: string;
   expectedSaves: string;
   breakdown: ViralityBreakdown;
+  audioUrl?: string;
 }
 
 export interface ViralityBreakdown {

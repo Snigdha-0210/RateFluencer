@@ -17,6 +17,7 @@ interface AppState {
 
   // AI Workflow generation state
   isGenerating: boolean;
+  isGeneratingAudio: boolean;
   generationStep: number;
   autonomousLog: { step: number; message: string }[];
   isAutonomousRunning: boolean;
@@ -54,6 +55,7 @@ interface AppState {
   duplicateReel: (id: string) => void;
   deleteReel: (id: string) => void;
   updateReelStatus: (id: string, status: Reel["status"]) => void;
+  generateAudioForReel: (id: string, text: string) => Promise<void>;
 
   // Creator Profile Personalization
   creatorProfile: CreatorProfile;
@@ -196,6 +198,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setReels: (reels) => set({ reels }),
 
   isGenerating: false,
+  isGeneratingAudio: false,
   generationStep: 0,
   autonomousLog: [],
   isAutonomousRunning: false,
@@ -308,94 +311,55 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
   },
 
-  generateReelWithWorkflow: (title, sourceType, category, trend, router) => {
-    set({ isGenerating: true, generationStep: 0 });
+  generateReelWithWorkflow: async (title, sourceType, category, trend, router) => {
+    set({ isGenerating: true, generationStep: 1 });
 
-    let currentStep = 0;
-    const interval = setInterval(() => {
-      currentStep += 1;
-      if (currentStep < 8) {
-        set({ generationStep: currentStep });
-      } else {
-        clearInterval(interval);
+    try {
+      const res = await fetch("/api/generate-reel-agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idea: title,
+          category: category || "General",
+          audience: {
+            country: "United States",
+            region: "North America",
+            ageGroup: "Gen Z (13-24)",
+            gender: "All",
+            interestCategory: category || "All",
+            occupation: "All"
+          }
+        })
+      });
 
-        if (sourceType === "idea") {
-          const defaultDraft = createDefaultDraftForTopic(title);
-          const newReel: Reel = {
-            id: `reel_${Date.now()}`,
-            title,
-            category: category || "General",
-            sourceType: "idea",
-            sourceName: title,
-            createdAt: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-            viralityScore: defaultDraft.viralityScore,
-            status: "draft",
-            targeting: {
-              country: "United States",
-              region: "North America",
-              ageGroup: "Gen Z (13-24)",
-              gender: "All",
-              interestCategory: category || "All",
-              occupation: "All"
-            },
-            draft: defaultDraft,
-            platformScores: { instagram: 82, linkedin: 80, youtubeShorts: 85, tiktok: 88 }
-          };
-          set((state) => ({
-            reels: [newReel, ...state.reels],
-            activeReelId: newReel.id,
-            contentDraft: newReel.draft,
-            isGenerating: false,
-            generationStep: 0,
-            activePage: "create"
-          }));
-        } else if (sourceType === "trend" && trend) {
-          const newReel: Reel = {
-            id: `reel_${Date.now()}`,
-            title: trend.name,
-            category: trend.category,
-            sourceType: "trend",
-            sourceName: trend.name,
-            createdAt: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-            viralityScore: trend.scores.overall,
-            status: "draft",
-            targeting: {
-              country: "United States",
-              region: "North America",
-              ageGroup: "Gen Z (13-24)",
-              gender: "All",
-              interestCategory: trend.category,
-              occupation: "All"
-            },
-            draft: {
-              ...DEFAULT_DRAFT,
-              id: `draft_${Date.now()}`,
-              trendId: trend.id,
-              viralityScore: trend.scores.overall,
-              hook: `POV: You realize '${trend.name}' is changing everything. Stop scrolling. 🤖🔥`
-            },
-            platformScores: {
-              instagram: trend.scores.overall,
-              linkedin: Math.max(10, trend.scores.overall - 4),
-              youtubeShorts: Math.max(10, trend.scores.overall - 1),
-              tiktok: Math.min(100, trend.scores.overall + 3)
-            }
-          };
-          set((state) => ({
-            reels: [newReel, ...state.reels],
-            activeReelId: newReel.id,
-            contentDraft: newReel.draft,
-            isGenerating: false,
-            generationStep: 0,
-            activePage: "create"
-          }));
-        }
+      set({ generationStep: 5 });
+
+      if (!res.ok) {
+        throw new Error("Failed to generate reel");
+      }
+
+      const data = await res.json();
+      
+      set({ generationStep: 8 });
+
+      if (data.reel) {
+        set((state) => ({
+          reels: [data.reel, ...state.reels],
+          activeReelId: data.reel.id,
+          contentDraft: data.reel.draft,
+          isGenerating: false,
+          generationStep: 0,
+          activePage: "create"
+        }));
 
         if (router) {
           router.push("/create");
         }
       }
-    }, 500); // 500ms per step
+    } catch (e) {
+      console.error(e);
+      set({ isGenerating: false, generationStep: 0 });
+    }
   },
 
   runAutonomousAgent: (router) => {
@@ -522,5 +486,27 @@ export const useAppStore = create<AppState>((set, get) => ({
         reel.id === id ? { ...reel, status } : reel
       )
     }));
+  },
+
+  generateAudioForReel: async (id: string, text: string) => {
+    set({ isGeneratingAudio: true });
+    try {
+      const res = await fetch("/api/generate-audio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scriptId: id, text })
+      });
+      const data = await res.json();
+      
+      if (data.success && data.audioUrl) {
+        get().updateActiveReelDraft({ audioUrl: data.audioUrl });
+      } else {
+        console.error("Audio generation failed:", data.error);
+      }
+    } catch (error) {
+      console.error("Audio generation failed:", error);
+    } finally {
+      set({ isGeneratingAudio: false });
+    }
   }
 }));

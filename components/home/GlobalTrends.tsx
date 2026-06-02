@@ -22,20 +22,19 @@ export default function GlobalTrends() {
   const [trends, setTrends] = useState<Trend[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTrend, setSelectedTrend] = useState<Trend | null>(null);
-  const [geo, setGeo] = useState("US");
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/trends/country?geo=${geo}`)
+    fetch(`/api/trends/country`)
       .then(res => res.json())
       .then(data => {
-        if (data.success) {
-          setTrends(data.trends || []);
+        if (data.success && data.trends) {
+          setTrends(data.trends.slice(0, 20));
         }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [geo]);
+  }, []);
 
   return (
     <div className="card" style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -46,34 +45,8 @@ export default function GlobalTrends() {
           </div>
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)" }}>Global Top Trends</h2>
-            <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>The biggest stories right now, across all categories.</p>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>The biggest stories right now, across the entire globe.</p>
           </div>
-        </div>
-
-        {/* Country Selector */}
-        <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-          <MapPin size={14} color="var(--text-muted)" style={{ position: "absolute", left: 10, zIndex: 1 }} />
-          <select
-            value={geo}
-            onChange={(e) => setGeo(e.target.value)}
-            style={{
-              padding: "6px 28px 6px 30px",
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              background: "white",
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--text-primary)",
-              outline: "none",
-              cursor: "pointer",
-              appearance: "none",
-            }}
-          >
-            {COUNTRIES.map(c => (
-              <option key={c.code} value={c.code}>{c.name}</option>
-            ))}
-          </select>
-          <span style={{ position: "absolute", right: 10, pointerEvents: "none", fontSize: 10, color: "var(--text-muted)" }}>▼</span>
         </div>
       </div>
 

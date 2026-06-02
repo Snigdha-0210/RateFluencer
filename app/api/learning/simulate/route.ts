@@ -10,8 +10,8 @@ export async function POST(request: Request) {
     const state = getLearningState();
     const latestPending = state.predictions.filter(p => p.actualScore === null).pop();
     if (latestPending) {
-        // Mock an actual score that deviates from prediction by a random amount (-15 to +5)
-        const deviation = Math.floor(Math.random() * 20) - 15; 
+        // Apply a static -5 deviation for simulation to avoid mock randomness
+        const deviation = -5; 
         const simulatedScore = Math.max(0, Math.min(100, latestPending.predictedScore + deviation));
         const updatedState = simulateRealPerformance(latestPending.id, simulatedScore);
         return NextResponse.json(updatedState);

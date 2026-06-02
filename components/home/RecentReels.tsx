@@ -1,18 +1,28 @@
 "use client";
 
 import { useAppStore } from "@/store/useAppStore";
+import { useState, useEffect } from "react";
 import { Calendar, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { Reel } from "@/types";
 import { useRouter } from "next/navigation";
 
 export default function RecentReels() {
-  const reels = useAppStore((state) => state.reels);
+  const [recent, setRecent] = useState<any[]>([]);
   const setActiveReelId = useAppStore((state) => state.setActiveReelId);
   const setActivePage = useAppStore((state) => state.setActivePage);
   const router = useRouter();
 
-  const recent = reels.slice(0, 3); // show top 3 recent reels
+  useEffect(() => {
+    fetch("/api/reels/recent")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.reels)) {
+          setRecent(data.reels);
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   const handleOpen = (id: string) => {
     setActiveReelId(id);

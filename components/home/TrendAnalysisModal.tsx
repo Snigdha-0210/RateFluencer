@@ -26,7 +26,9 @@ export default function TrendAnalysisModal({ trend, isOpen, onClose }: TrendAnal
         body: JSON.stringify({
           trendName: trend.name,
           trendCategory: trend.category,
-          trendDescription: trend.description
+          trendDescription: trend.description,
+          velocity: trend.scores?.growth || 85,
+          trendUrl: trend.url
         })
       })
       .then(res => res.json())

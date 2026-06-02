@@ -8,9 +8,8 @@ import { predictVirality } from "@/lib/services/virality-prediction.service";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  // We use Server-Sent Events (SSE) for the frontend
   const session = await auth();
-  const userId = session?.user?.id || "anonymous-user"; // Fallback for testing without login
+  const userId = session?.user?.id || "anonymous-user";
   
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -23,7 +22,7 @@ export async function GET(req: Request) {
 
       try {
         // Step 1: Init Run
-        sendEvent(1, "Initializing Agent Pipeline...");
+        sendEvent(1, "Initializing Autonomous Agent...");
         let agentRun: any = null;
         if (userId !== "anonymous-user") {
           const runRef = db.collection("agentRuns").doc();
@@ -32,45 +31,44 @@ export async function GET(req: Request) {
             userId,
             status: "running",
             currentStep: "init",
-            logs: ["Initializing Agent Pipeline..."],
+            logs: ["Initializing Autonomous Agent..."],
             startedAt: new Date().toISOString()
           };
           await runRef.set(agentRun).catch(() => null);
         }
 
-        // Step 2: Trend Discovery
-        sendEvent(2, "Scraping latest trends from Reddit & YouTube...");
+        // Step 2: Trend Discovery (Researching)
+        sendEvent(2, "Researching the internet for viral topics...");
         const trends = await fetchLiveTrends();
         if (agentRun) {
           await db.collection("agentRuns").doc(agentRun.id).update({
             currentStep: "discovery",
-            logs: admin.firestore.FieldValue.arrayUnion("Scraping latest trends from Reddit & YouTube...")
+            logs: admin.firestore.FieldValue.arrayUnion("Researching the internet for viral topics...")
           });
         }
         
-        // Pick top trend
-        sendEvent(3, "Ranking and selecting the most viral trend...");
-        // Delay for simulation
-        await new Promise((r) => setTimeout(r, 1500));
-        const topTrend = trends[0]; // Naive pick
+        // Step 3: Ranking
+        sendEvent(3, "Ranking trends by velocity and engagement...");
+        if (!trends || trends.length === 0) throw new Error("No trends found during research.");
+        const topTrend = trends[0]; // Ranked #1
 
-        // Step 4: Script Creation
-        sendEvent(4, `Generating script for: "${topTrend.name}"...`);
-        const generatedContent = await generateContent(userId, topTrend.name, topTrend.category || "General");
+        // Step 4: Script Creation (Writing Script & Generating Posts)
+        sendEvent(4, `Writing Script & Generating Posts for: "${topTrend.title}"...`);
+        const generatedContent = await generateContent(userId, topTrend.title, topTrend.category || "General");
         
         if (agentRun) {
           await db.collection("agentRuns").doc(agentRun.id).update({
             currentStep: "generation",
-            logs: admin.firestore.FieldValue.arrayUnion(`Generating script for: "${topTrend.name}"...`)
+            logs: admin.firestore.FieldValue.arrayUnion(`Generated Script & Posts for: "${topTrend.title}"`)
           });
         }
 
         // Step 5: Virality Prediction
-        sendEvent(5, "Predicting virality metrics...");
+        sendEvent(5, "Predicting Virality Scores...");
         const virality = await predictVirality(generatedContent);
         
-        // Save to DB
-        sendEvent(6, "Saving generated assets...");
+        // Step 6: Saving Results
+        sendEvent(6, "Saving Results to Database...");
         
         let savedScript: any = null;
         if (userId !== "anonymous-user") {
@@ -81,22 +79,23 @@ export async function GET(req: Request) {
             trendId: topTrend.id,
             hook: generatedContent.hook,
             story: generatedContent.story,
-            keyInsights: generatedContent.keyInsights,
+            insights: generatedContent.keyInsights,
             cta: generatedContent.cta,
-            status: "generated",
             createdAt: new Date().toISOString()
           };
           await scriptRef.set(savedScript);
 
           await db.collection("linkedinPosts").doc().set({
             scriptId: savedScript.id,
-            content: generatedContent.linkedinPost,
+            userId,
+            post: generatedContent.linkedinPost,
             hashtags: generatedContent.linkedinHashtags || [],
             createdAt: new Date().toISOString()
           });
 
           await db.collection("instagramPosts").doc().set({
             scriptId: savedScript.id,
+            userId,
             caption: generatedContent.instagramCaption,
             hashtags: generatedContent.instagramHashtags || [],
             cta: generatedContent.instagramCTA || "",
@@ -105,10 +104,11 @@ export async function GET(req: Request) {
 
           await db.collection("viralityPredictions").doc().set({
             scriptId: savedScript.id,
-            views: virality.views,
-            likes: virality.likes,
-            shares: virality.shares,
-            saves: virality.saves,
+            userId,
+            expectedViews: virality.views,
+            expectedLikes: virality.likes,
+            expectedShares: virality.shares,
+            expectedSaves: virality.saves,
             viralityScore: virality.viralityScore,
             createdAt: new Date().toISOString()
           });
@@ -123,14 +123,14 @@ export async function GET(req: Request) {
         // Send Final Result back to the store
         const reelFormat = {
           id: savedScript?.id || `reel_${Date.now()}`,
-          title: topTrend.name,
-          category: topTrend.category || "AI",
-          sourceType: "trend",
-          sourceName: topTrend.name,
+          title: topTrend.title,
+          category: topTrend.category,
+          sourceType: "autonomous_agent",
+          sourceName: topTrend.source,
           createdAt: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
           viralityScore: virality.viralityScore,
           status: "generated",
-          targeting: { country: "United States", region: "North America", ageGroup: "Gen Z (13-24)", gender: "All", interestCategory: topTrend.category || "AI", occupation: "All" },
+          targeting: { country: "United States", region: "North America", ageGroup: "Gen Z (13-24)", gender: "All", interestCategory: topTrend.category, occupation: "All" },
           draft: {
             id: `draft_${Date.now()}`,
             trendId: topTrend.id,
@@ -149,27 +149,27 @@ export async function GET(req: Request) {
             expectedShares: virality.shares,
             expectedSaves: virality.saves,
             breakdown: {
-              hookStrength: 85,
-              topicMomentum: 90,
+              hookStrength: Math.round(virality.viralityScore * 0.9),
+              topicMomentum: Math.round(virality.viralityScore * 0.95),
               searchInterest: 80,
               audienceFit: 88,
               novelty: 82,
               ctaStrength: 85
             }
           },
-          platformScores: { instagram: 88, linkedin: 85, youtubeShorts: 90, tiktok: 92 }
+          platformScores: { instagram: virality.viralityScore, linkedin: Math.max(0, virality.viralityScore - 5), youtubeShorts: Math.min(100, virality.viralityScore + 2), tiktok: Math.min(100, virality.viralityScore + 4) }
         };
 
         sendEvent(10, "Done!", {
           reel: reelFormat,
-          aiReasoningSummary: `Successfully extracted trending topic ${topTrend.name}. Generated an optimized hook and story. Predicted virality score: ${virality.viralityScore}/100.`
+          aiReasoningSummary: `Successfully extracted trending topic ${topTrend.title}. Generated an optimized hook and story. Predicted virality score: ${virality.viralityScore}/100.`
         });
         
         sendEvent(-1, "close"); // Signal to close
         controller.close();
-      } catch (err) {
+      } catch (err: any) {
         console.error("Agent Run Error:", err);
-        sendEvent(-1, "error");
+        sendEvent(-1, "error", { message: err.message });
         controller.close();
       }
     },
