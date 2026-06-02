@@ -1,41 +1,49 @@
-# Creator OS (Ratefluencer Hackathon)
+# 🎬 Creator OS (AI Viral Reel Creator Agent)
 
 🎥 **[Watch the Hackathon Demo Video Here!](https://drive.google.com/file/d/1uOjqjqgKyHGg-crPnx7UqVCqUM1OnG70/view?usp=sharing)**
 
----
+Creator OS is an autonomous AI agent built for the **AI Viral Reel Creator** hackathon track. It completely automates the content creation workflow for influencers and marketers—from discovering global trends to writing highly-engaging reel scripts, generating voiceovers, and predicting virality.
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-## Getting Started
+## 🚀 Key Features
 
-First, run the development server:
+* **Global Trend Discovery Engine:** Scrapes real-time trending topics and YouTube data to identify high-velocity viral content opportunities.
+* **Autonomous Reel Generation:** Input any vague topic (e.g., "Finance") and the AI will autonomously research, expand ideas, and write a complete 4-part video script (Hook, Story, Data, CTA).
+* **AI Voiceover Synthesis:** Instantly converts the generated script into a playable, broadcast-quality voiceover using Google's Text-to-Speech engine.
+* **Multi-Platform Output:** Automatically generates tailored LinkedIn text posts and Instagram captions, complete with AI-optimized hashtags.
+* **Virality Prediction:** Uses advanced LLM analysis to score the generated hook and script on a scale of 0-100 for its potential to go viral.
+* **Smart Content Studio:** Provides a simulated TikTok/Shorts environment to preview your generated video, voiceover, and captions in real-time.
+* **One-Click "AI Improve":** Instantly rewrite and optimize any part of your script (hook, story, etc.) to be punchier and more engaging using Llama-3.1.
+
+## 🛠️ Technology Stack
+
+* **Frontend:** Next.js 14 (App Router), React, Tailwind CSS, Framer Motion
+* **AI / LLMs:** Groq SDK (Llama-3.1-8b-instant) for blazing-fast script generation and text optimization
+* **Audio:** Google TTS API for instant text-to-speech rendering
+* **Database:** Firebase / Firestore for caching trends and saving drafts
+* **Deployment:** Vercel
+
+## ⚙️ Getting Started
+
+First, clone the repository and install the dependencies:
+
+```bash
+npm install
+```
+
+Configure your environment variables in `.env.local`:
+```bash
+GROQ_API_KEY="your_groq_api_key"
+YOUTUBE_API_KEY="your_youtube_api_key"
+# Add your Firebase service account credentials as well
+```
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser to launch the Creator OS dashboard.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🏆 Hackathon Track
+This project was built to solve the core problem of creator burnout by automating the heavy lifting of trend research, scriptwriting, and production.
